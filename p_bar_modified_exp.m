@@ -1,13 +1,80 @@
 %% Large Matrix Exp with Block Hutch AMM
 
-% A modified p_bar
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Data generation
+% case: uniform
 m = 100;k = 10000;% Define matrix factor size
 rng(0)  % For reproducibility
 A = rand(m,k);B = rand(k,m);T = A*B;
 
-% Enhanced pairwise partition
+% more meaningful matrices: low rank matrices
+m1=100;m2=100;k=1000;k_x=40;k_y=40;%case 1
+%m1=1000;m2=1000;k=10000;k_x=400;k_y=400;%case 2
+%m1=100;m2=100;k=10000;k_x=40;k_y=40;%case 3
+U1 = normrnd(0,1,[m1,k_x]);U2 = normrnd(0,1,[m2,k_y]);
+S1 = diag(1-linspace(0,k_x-1,k_x)/k_x);S2 = diag(1-linspace(0,k_y-1,k_y)/k_y);
+[temp,~]=qr(randn(k));V1 = temp(1:k_x,:); %unitary matrix
+[temp,~]=qr(randn(k));V2 = temp(1:k_y,:);
+A = U1*S1*V1;N1=normrnd(0,1,size(A))/m1;
+B = (U2*S2*V2)';N2=normrnd(0,1,size(B))/m2;
+%A = (A+N1);B = (B+N2);%add noise
+%B = A'; %covariance matrix
+T = A*B;
 
-% sort the (Hutch estimated) column-wise 
+% generate exponential decreasing column data
+m = 100;k = 10000;
+%mu = exp(-(0:0.01:99.99));
+mu = exp(linspace(5,0,10000));
+Sigma = eye(k);
+rng(0) 
+A_decay = mvnrnd(mu,Sigma,m);
+%A = A_decay;
+A = A_decay(:,randperm(k));
+B = rand(k,m);T = A*B;
+
+% generate linear increasing
+m = 100;k = 10000;
+mu = 0:0.001:9.999;
+Sigma = eye(k);
+rng(0) 
+A_decay = mvnrnd(mu,Sigma,m);
+%A = A_decay;
+A = A_decay(:,randperm(k));
+B = 5*rand(k,m);T = A*B;
+
+% generate drift data (exponential decreasing + linear increasing)
+m = 100;k = 10000;
+mu = 0:0.01:99.99;
+mu = exp(-mu);
+Sigma = eye(k/2);
+rng(0) 
+A_decay1 = mvnrnd(mu(1:(k/2)),Sigma,m);
+A_decay2 = mvnrnd(linspace(0,1,k/2),Sigma,m);
+A_decay = cat(2,A_decay1,A_decay2);
+%A = A_decay;
+A = A_decay(:,randperm(k));
+B = rand(k,m);T = A*B;
+
+% Visualization of column mean
+mean_v_1 = zeros(1,k);
+mean_v_2 = zeros(1,k);
+for i = 1:1:k
+    mean_v_1(i) = mean(A_decay(:,i));
+    mean_v_2(i) = mean(A(:,i));
+end
+figure();
+subplot(1,2,1);
+plot(linspace(1,k,k),mean_v_1)
+title('Subplot 1: Before permutation')
+subplot(1,2,2);
+plot(linspace(1,k,k),mean_v_2)
+title('Subplot 2: After permutation')
+sgtitle('mean value of each column from A (exponential decreasing case 2)')
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Hutch AMM experiment
+
+% sort the (Hutch estimated) column-wise  (% Enhanced pairwise partition, ditched idea)
 W_colw = cell(1,k);
 p_Hutch = zeros(1,k);
 for j = 1:1:k
@@ -16,7 +83,7 @@ for j = 1:1:k
 end
 [~,idx] = sort(p_Hutch);
 
-% partition based on the sorted results
+% partition based on the sorted or natural sequential
 block_sz = 10;
 num_group = ceil(k/block_sz);
 index_p = cell(1,num_group);
@@ -79,14 +146,12 @@ for i = 1:num_repeat
            
             Tr = Tr + W{t}/p(t);
             Tr_plus = Tr_plus + W{t_plus}/p_plus(t_plus);
-            
+            % replace the estimated norm with sampled true norm
             if ismember(t_bar,sampledset) ~= true
                 p_bar_raw(t_bar) = norm(W{t_bar},'fro');
             end
             sampledset(j) = t_bar;
-            Tr_bar = Tr_bar + W{t_bar}/(p_bar_raw(t_bar)/sum(p_bar_raw));
-            
-            
+            Tr_bar = Tr_bar + W{t_bar}/(p_bar_raw(t_bar)/sum(p_bar_raw));                     
         end
         Tr_Hutch = Tr/s;
         Tr_Hutch_bar = Tr_bar/s;
@@ -100,6 +165,7 @@ for i = 1:num_repeat
     end
 end
 
+% visualization of three methods comparison
 figure();
 row_names = arrayfun(@num2str,v,'uni',0);
 row_names = [row_names 'opt'];
@@ -117,21 +183,6 @@ boxplot([hutch_AMM_plus' opt_AMM'],'Labels',row_names)
 xlabel('number of matrix-vector multiplication')
 title('Subplot 3: p_{Hutch++}')
 sgtitle('exponential decreasing case 2, sample number = 500, block size = 10')
-
-% control the balance between AMM sample number and block size
-% more meaningful matrices
-m1=100;m2=100;k=1000;k_x=40;k_y=40;%case 1
-%m1=1000;m2=1000;k=10000;k_x=400;k_y=400;%case 2
-%m1=100;m2=100;k=10000;k_x=40;k_y=40;%case 3
-U1 = normrnd(0,1,[m1,k_x]);U2 = normrnd(0,1,[m2,k_y]);
-S1 = diag(1-linspace(0,k_x-1,k_x)/k_x);S2 = diag(1-linspace(0,k_y-1,k_y)/k_y);
-[temp,~]=qr(randn(k));V1 = temp(1:k_x,:); %unitary matrix
-[temp,~]=qr(randn(k));V2 = temp(1:k_y,:);
-A = U1*S1*V1;N1=normrnd(0,1,size(A))/m1;
-B = (U2*S2*V2)';N2=normrnd(0,1,size(B))/m2;
-%A = (A+N1);B = (B+N2);%add noise
-%B = A'; %covariance matrix
-T = A*B;
 
 % check if the code is correct
 m = 100;k = 1000;rng(0);A = rand(m,k);B = rand(k,m);T = A*B;
@@ -196,53 +247,3 @@ hold on
 plot(1:1:100,opt_AMM)
 title('Increasing AMM sampling number with fixed box size = 1, low rank case')
 hold off
-
-% generate exponential decreasing column data
-m = 100;k = 10000;
-%mu = exp(-(0:0.01:99.99));
-mu = exp(linspace(5,0,10000));
-Sigma = eye(k);
-rng(0) 
-A_decay = mvnrnd(mu,Sigma,m);
-%A = A_decay;
-A = A_decay(:,randperm(k));
-B = rand(k,m);T = A*B;
-
-% generate linear increasing
-m = 100;k = 10000;
-mu = 0:0.001:9.999;
-Sigma = eye(k);
-rng(0) 
-A_decay = mvnrnd(mu,Sigma,m);
-%A = A_decay;
-A = A_decay(:,randperm(k));
-B = 5*rand(k,m);T = A*B;
-
-% generate drift data (exponential decreasing + linear increasing)
-m = 100;k = 10000;
-mu = 0:0.01:99.99;
-mu = exp(-mu);
-Sigma = eye(k/2);
-rng(0) 
-A_decay1 = mvnrnd(mu(1:(k/2)),Sigma,m);
-A_decay2 = mvnrnd(linspace(0,1,k/2),Sigma,m);
-A_decay = cat(2,A_decay1,A_decay2);
-%A = A_decay;
-A = A_decay(:,randperm(k));
-B = rand(k,m);T = A*B;
-
-% Visualization of column mean
-mean_v_1 = zeros(1,k);
-mean_v_2 = zeros(1,k);
-for i = 1:1:k
-    mean_v_1(i) = mean(A_decay(:,i));
-    mean_v_2(i) = mean(A(:,i));
-end
-figure();
-subplot(1,2,1);
-plot(linspace(1,k,k),mean_v_1)
-title('Subplot 1: Before permutation')
-subplot(1,2,2);
-plot(linspace(1,k,k),mean_v_2)
-title('Subplot 2: After permutation')
-sgtitle('mean value of each column from A (exponential decreasing case 2)')
