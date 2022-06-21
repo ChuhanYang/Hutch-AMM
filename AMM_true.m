@@ -14,6 +14,6 @@ p = p/sum(p);
 m_list = randsample(k,m,true,p);
 for j = 1:1:m
     t = m_list(j);
-    Tr = Tr + A(:,t)*B(t,:)/p(t);
+    Tr = Tr + A(:,index_p{t})*B(index_p{t},:)/p(t);
 end
 Tr = Tr/m;
