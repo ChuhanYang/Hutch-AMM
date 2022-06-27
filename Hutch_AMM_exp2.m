@@ -3,7 +3,7 @@
 
 % generate exponential decreasing column data
 m = 100;k = 10000;
-mu = exp(linspace(5,0,10000));
+mu = exp(linspace(5,0,k));
 Sigma = eye(k);
 rng(0) 
 A_decay = mvnrnd(mu,Sigma,m);
@@ -107,6 +107,56 @@ for i = 1:num_repeat
         %uniform_AMM(h,i) = norm(Tr_Hutch_uniform-T,'fro')/(norm(A,'fro')*norm(B,'fro'));
     end
 end
+
+% experiment: fix block zise, increase sample number s, comparing uniform
+% sample/Hutch AMM with diff h/Standard AMM
+block_sz = 10;
+num_group = ceil(k/block_sz);
+p_uniform = ones(1,num_group)/num_group;
+index_p = cell(1,num_group);
+W = cell(1,num_group);
+for i = 1:1:num_group
+    index_p{i} =  ((i-1)*block_sz+1):(i*block_sz) ; %natural sequential
+    W{i} = A(:,index_p{i})*B(index_p{i},:);
+
+end
+
+%s_list = 50:50:500;
+s_list = 100:10:490;
+result_tbl = zeros(6,length(s_list));
+counter = 1;
+for s = s_list 
+    disp(counter)
+    X_h5 = AMM_coarse_hutch(A,B,s,5,index_p);
+    X_h10 = AMM_coarse_hutch(A,B,s,10,index_p);
+    X_h20 = AMM_coarse_hutch(A,B,s,20,index_p);
+    X_h50 = AMM_coarse_hutch(A,B,s,50,index_p);
+    %optimal case
+    X_optimal = AMM_true(A,B,s,index_p);
+
+    %uniform sampling case
+    X_uniform = zeros(size(A,1),size(B,2));
+    UniformSample_list = randsample(num_group,s,true,p_uniform);
+    for j = 1:1:s
+        t_uniform = UniformSample_list(j);           
+        X_uniform = X_uniform + W{t_uniform}/p_uniform(t_uniform);                    
+    end
+    X_uniform = X_uniform/s;
+    result_tbl(1,counter) = norm(X_h5-T,'fro')/norm(T,'fro');
+    result_tbl(2,counter) = norm(X_h10-T,'fro')/norm(T,'fro');
+    result_tbl(3,counter) = norm(X_h20-T,'fro')/norm(T,'fro');
+    result_tbl(4,counter) = norm(X_h50-T,'fro')/norm(T,'fro');
+    result_tbl(5,counter) = norm(X_optimal-T,'fro')/norm(T,'fro');
+    result_tbl(6,counter) = norm(X_uniform-T,'fro')/norm(T,'fro');
+    counter = counter+1;
+end
+
+plot(s_list,result_tbl,'o-')
+%ylim([0,0.18])
+xlabel('AMM sample number','FontSize',15);
+ylabel('relative error','FontSize',15);
+title('Exponential decreasing, Estimation error comparison, block size = 10','FontSize',20)
+legend('Hutch AMM h = 5','Hutch AMM h = 10','Hutch AMM h = 20','Hutch AMM h = 50','Optimal AMM','Uniform Sampling')
 
 % visualization: performance comparison
 fig = figure;
@@ -216,7 +266,7 @@ for block_sz = block_sz_List
     end
     s = ceil(N/block_sz);
     h = 10;
-    f1 = @() AMM_true(A,B,s,index_p);
+    f1 = @() AMM_true_tracefun(A,B,s,index_p);
     f2 = @() AMM_coarse_hutch(A,B,s,h,index_p);
     time_tbl1(counter) = timeit(f1);
     time_tbl2(counter) = timeit(f2);
