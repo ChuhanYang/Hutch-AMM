@@ -8,7 +8,7 @@ Sigma = eye(k);
 rng(0) 
 A_decay = mvnrnd(mu,Sigma,m);
 A = A_decay;
-%A = A_decay(:,randperm(k));
+A = A_decay(:,randperm(k));
 B = rand(k,m);T = A*B;
 
 % generate linear increasing
@@ -157,6 +157,61 @@ xlabel('AMM sample number','FontSize',15);
 ylabel('relative error','FontSize',15);
 title('Exponential decreasing, Estimation error comparison, block size = 10','FontSize',20)
 legend('Hutch AMM h = 5','Hutch AMM h = 10','Hutch AMM h = 20','Hutch AMM h = 50','Optimal AMM','Uniform Sampling')
+
+% visualize mean values:
+block_sz = 10;
+num_group = ceil(k/block_sz);
+p_uniform = ones(1,num_group)/num_group;
+index_p = cell(1,num_group);
+W = cell(1,num_group);
+for i = 1:1:num_group
+    index_p{i} =  ((i-1)*block_sz+1):(i*block_sz) ; %natural sequential
+    W{i} = A(:,index_p{i})*B(index_p{i},:);
+
+end
+
+repeat_time = 20;
+s_list = 100:10:490;
+[result_tbl_h5, result_tbl_h10, result_tbl_h20,result_tbl_h50,result_tbl_opt,result_tbl_uni] = deal(zeros(repeat_time,length(s_list)));
+for rep_num = 1:1:repeat_time
+    disp('repeat round = ')
+    disp(rep_num)
+    counter = 1;
+    for s = s_list 
+        disp(counter)
+        X_h5 = AMM_coarse_hutch(A,B,s,5,index_p);
+        X_h10 = AMM_coarse_hutch(A,B,s,10,index_p);
+        X_h20 = AMM_coarse_hutch(A,B,s,20,index_p);
+        X_h50 = AMM_coarse_hutch(A,B,s,50,index_p);
+        %optimal case
+        X_optimal = AMM_true(A,B,s,index_p);
+
+        %uniform sampling case
+        X_uniform = zeros(size(A,1),size(B,2));
+        UniformSample_list = randsample(num_group,s,true,p_uniform);
+        for j = 1:1:s
+            t_uniform = UniformSample_list(j);           
+            X_uniform = X_uniform + W{t_uniform}/p_uniform(t_uniform);                    
+        end
+        X_uniform = X_uniform/s;
+        result_tbl_h5(rep_num,counter) = norm(X_h5-T,'fro')/norm(T,'fro');
+        result_tbl_h10(rep_num,counter) = norm(X_h10-T,'fro')/norm(T,'fro');
+        result_tbl_h20(rep_num,counter) = norm(X_h20-T,'fro')/norm(T,'fro');
+        result_tbl_h50(rep_num,counter) = norm(X_h50-T,'fro')/norm(T,'fro');
+        result_tbl_opt(rep_num,counter) = norm(X_optimal-T,'fro')/norm(T,'fro');
+        result_tbl_uni(rep_num,counter) = norm(X_uniform-T,'fro')/norm(T,'fro');
+        counter = counter+1;
+    end
+end
+
+result_tbl = [mean(result_tbl_h5); mean(result_tbl_h10);mean(result_tbl_h20);mean(result_tbl_h50);mean(result_tbl_opt);mean(result_tbl_uni)];
+plot(s_list,result_tbl,'o-')
+%ylim([0,0.18])
+xlabel('AMM sample number','FontSize',15);
+ylabel('mean relative error','FontSize',15);
+title('Exponential decreasing with permutation, Estimation error comparison, block size = 10','FontSize',20)
+legend('Hutch AMM h = 5','Hutch AMM h = 10','Hutch AMM h = 20','Hutch AMM h = 50','Optimal AMM','Uniform Sampling')
+
 
 % visualization: performance comparison
 fig = figure;
