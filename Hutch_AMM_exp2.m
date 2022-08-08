@@ -2,13 +2,15 @@
 % sampled AMM
 
 % generate exponential decreasing column data
-m = 100;k = 10000;
+m = 800;k = 10000;
 mu = exp(linspace(5,0,k));
-Sigma = eye(k);
+%Sigma = eye(k);
 rng(0) 
-A_decay = mvnrnd(mu,Sigma,m);
+%A_decay = mvnrnd(mu,Sigma,m);
+A_decay = mu + randn(m,k);
 A = A_decay;
-A = A_decay(:,randperm(k));
+%A = A_decay(:,randperm(k));
+%A = rand(m,k);
 B = rand(k,m);T = A*B;
 
 % generate linear increasing
@@ -159,6 +161,7 @@ title('Exponential decreasing, Estimation error comparison, block size = 10','Fo
 legend('Hutch AMM h = 5','Hutch AMM h = 10','Hutch AMM h = 20','Hutch AMM h = 50','Optimal AMM','Uniform Sampling')
 
 % visualize mean values:
+%block_sz = 5;
 block_sz = 10;
 num_group = ceil(k/block_sz);
 p_uniform = ones(1,num_group)/num_group;
@@ -171,14 +174,17 @@ for i = 1:1:num_group
 end
 
 repeat_time = 20;
-s_list = 100:10:490;
-[result_tbl_h5, result_tbl_h10, result_tbl_h20,result_tbl_h50,result_tbl_opt,result_tbl_uni] = deal(zeros(repeat_time,length(s_list)));
+%%repeat_time = 50;
+s_list = 10:10:490;
+[result_tbl_h1,result_tbl_h3,result_tbl_h5, result_tbl_h10, result_tbl_h20,result_tbl_h50,result_tbl_opt,result_tbl_uni] = deal(zeros(repeat_time,length(s_list)));
 for rep_num = 1:1:repeat_time
     disp('repeat round = ')
     disp(rep_num)
     counter = 1;
     for s = s_list 
         disp(counter)
+        X_h1 = AMM_coarse_hutch(A,B,s,1,index_p);
+        X_h3 = AMM_coarse_hutch(A,B,s,3,index_p);
         X_h5 = AMM_coarse_hutch(A,B,s,5,index_p);
         X_h10 = AMM_coarse_hutch(A,B,s,10,index_p);
         X_h20 = AMM_coarse_hutch(A,B,s,20,index_p);
@@ -194,6 +200,8 @@ for rep_num = 1:1:repeat_time
             X_uniform = X_uniform + W{t_uniform}/p_uniform(t_uniform);                    
         end
         X_uniform = X_uniform/s;
+        result_tbl_h1(rep_num,counter) = norm(X_h1-T,'fro')/norm(T,'fro');
+        result_tbl_h3(rep_num,counter) = norm(X_h3-T,'fro')/norm(T,'fro');
         result_tbl_h5(rep_num,counter) = norm(X_h5-T,'fro')/norm(T,'fro');
         result_tbl_h10(rep_num,counter) = norm(X_h10-T,'fro')/norm(T,'fro');
         result_tbl_h20(rep_num,counter) = norm(X_h20-T,'fro')/norm(T,'fro');
@@ -204,13 +212,52 @@ for rep_num = 1:1:repeat_time
     end
 end
 
-result_tbl = [mean(result_tbl_h5); mean(result_tbl_h10);mean(result_tbl_h20);mean(result_tbl_h50);mean(result_tbl_opt);mean(result_tbl_uni)];
+%save('ExpDec_h10_ErrEst')
+%save('LinInc_h10_ErrEst')
+%save('Drift_h10_ErrEst')
+%save('Uniform_h10_ErrEst')
+save('ExpDec_bsz20_ErrEst')
+
+result_tbl = [mean(result_tbl_h1);mean(result_tbl_h3);mean(result_tbl_h5); mean(result_tbl_h10);mean(result_tbl_h20);mean(result_tbl_h50)];
 plot(s_list,result_tbl,'o-')
 %ylim([0,0.18])
 xlabel('AMM sample number','FontSize',15);
 ylabel('mean relative error','FontSize',15);
-title('Exponential decreasing with permutation, Estimation error comparison, block size = 10','FontSize',20)
-legend('Hutch AMM h = 5','Hutch AMM h = 10','Hutch AMM h = 20','Hutch AMM h = 50','Optimal AMM','Uniform Sampling')
+title('Exponential decreasing, Estimation error comparison','FontSize',20)
+hold on;
+plot(s_list,mean(result_tbl_opt),'*-')
+plot(s_list,mean(result_tbl_uni),'*-')
+legend('Hutch AMM h = 1','Hutch AMM h = 3','Hutch AMM h = 5','Hutch AMM h = 10','Hutch AMM h = 20','Hutch AMM h = 50','Optimal AMM','Uniform Sampling')
+hold off;
+
+% visualization: shaded line plot
+fig = gcf;
+options.handle = fig;
+options.alpha      = 0.5;
+options.line_width = 2;
+options.error      = 'c95';
+options.color_area = [243 169 114]./255;    % Orange theme
+options.color_line = [236 112  22]./255;
+plot_areaerrorbar(result_tbl_h5,options)
+set(gca,'XTick',linspace(1,length(s_list),9))
+set(gca,'XTickLabel',linspace(10,490,9))
+%ylim([0,1])
+hold on
+plot_areaerrorbar(result_tbl_h50)
+hold on
+options.color_area = [0.4 0.4 0.4];    
+options.color_line = [0.85 0.85 0.85];% Grey theme
+plot_areaerrorbar(result_tbl_uni,options);
+hold on
+options.color_area = [0 204 102]./255;    
+options.color_line = [0 153 75]./255; % Green theme
+plot_areaerrorbar(result_tbl_opt,options);
+hold on
+xlabel('AMM sample number','FontSize',15);
+ylabel('mean relative error','FontSize',15);
+title('Exponential decreasing with block size = 10,#RepeatTest=50','FontSize',20)
+legend('', 'Hutch AMM h = 5', '','Hutch AMM h = 50','','Uniform Sampling','','Optimal AMMA')
+hold off
 
 
 % visualization: performance comparison
@@ -306,12 +353,91 @@ ylabel('time (s)');
 title('Avergae runtime of Bloack Hutch AMM')
 
 % visualization: runtime of AMM and Block-Hutch-AMM
-N = 5000; % total allowed sampled column number
+N = 2500; % total allowed sampled column number
 x = 1:N;
 block_sz_List = x(~(rem(N, x))); % find divisor for N as block_sz
-time_tbl1 = zeros(1,20);time_tbl2 = zeros(1,20);
+block_sz_List = block_sz_List(5:end); % remove block_sz < 10
+%time_tbl1 = zeros(1,20);time_tbl2 = zeros(1,20);time_tbl3 = zeros(1,20);
+[time_tbl1,time_tbl2,time_tbl3,time_tbl4,time_tbl5] = deal(zeros(1,length(block_sz_List)));
 counter = 1;
 for block_sz = block_sz_List
+    disp(counter)
+    num_group = ceil(k/block_sz);
+    index_p = cell(1,num_group);
+    for i = 1:1:num_group
+        index_p{i} =  ((i-1)*block_sz+1):(i*block_sz) ; %natural sequential
+    end
+    s = ceil(N/block_sz);
+    f1 = @() AMM_true_tracefun(A,B,s,index_p);
+    f2 = @() AMM_coarse_hutch(A,B,s,10,index_p);
+    f3 = @() AMM_coarse_uni(A,B,s,index_p);
+    f4 = @() AMM_coarse_hutch(A,B,s,1,index_p);
+    f5 = @() AMM_coarse_hutch(A,B,s,50,index_p);
+    time_tbl1(counter) = timeit(f1);
+    time_tbl2(counter) = timeit(f2);
+    time_tbl3(counter) = timeit(f3);
+    time_tbl4(counter) = timeit(f4);
+    time_tbl5(counter) = timeit(f5);
+    counter = counter+1;
+end
+
+
+plot(block_sz_List,time_tbl1,'o-',block_sz_List,time_tbl4,'*-',block_sz_List,time_tbl2,'*-',block_sz_List,time_tbl5,'*-',block_sz_List,time_tbl3,'+-')
+set(gca, 'YScale', 'log')
+%set(gca, 'XScale', 'log')
+xlabel('block size');
+ylabel('time (s)');
+title('Size 800 by 10000')
+legend('Block AMM','Hutch h=1','Hutch h=10','Hutch h=50','Uniform Sampling')
+
+% visualization: relative error vs runtime
+block_sz = 25;
+num_group = ceil(k/block_sz);
+p_uniform = ones(1,num_group)/num_group;
+index_p = cell(1,num_group);
+W = cell(1,num_group);
+for i = 1:1:num_group
+    index_p{i} =  ((i-1)*block_sz+1):(i*block_sz) ; %natural sequential
+    W{i} = A(:,index_p{i})*B(index_p{i},:);
+end
+
+repeat_time = 10;
+s_list = linspace(100,1000,10);
+s_list2 = linspace(500,5000,10);
+[result_tbl_h1, result_tbl_h10,result_tbl_h50,result_tbl_opt,result_tbl_uni] = deal(zeros(repeat_time,length(s_list)));
+for rep_num = 1:1:repeat_time
+    disp('repeat round = ')
+    disp(rep_num)
+    counter = 1;
+    for s = s_list 
+        disp(counter)
+        %X_h1 = AMM_coarse_hutch(A,B,s,1,index_p);
+        X_h10 = AMM_coarse_hutch(A,B,s,10,index_p);
+        %X_h50 = AMM_coarse_hutch(A,B,s,50,index_p);
+        %optimal case
+        X_optimal = AMM_true(A,B,s,index_p);
+
+        %uniform sampling case
+        X_uniform = zeros(size(A,1),size(B,2));
+        UniformSample_list = randsample(num_group,s,true,p_uniform);
+        for j = 1:1:s
+            t_uniform = UniformSample_list(j);           
+            X_uniform = X_uniform + W{t_uniform}/p_uniform(t_uniform);                    
+        end
+        X_uniform = X_uniform/s;
+        %result_tbl_h1(rep_num,counter) = norm(X_h1-T,'fro')/norm(T,'fro');
+        result_tbl_h10(rep_num,counter) = norm(X_h10-T,'fro')/norm(T,'fro');
+        %result_tbl_h50(rep_num,counter) = norm(X_h50-T,'fro')/norm(T,'fro');
+        result_tbl_opt(rep_num,counter) = norm(X_optimal-T,'fro')/norm(T,'fro');
+        result_tbl_uni(rep_num,counter) = norm(X_uniform-T,'fro')/norm(T,'fro');
+        counter = counter+1;
+    end
+end
+
+
+[time_tbl1,time_tbl2,time_tbl3,time_tbl4,time_tbl5] = deal(zeros(1,length(s_list)));
+counter = 1;
+for s = s_list
     disp(counter)
     num_group = ceil(k/block_sz);
     index_p = cell(1,num_group);
@@ -319,19 +445,133 @@ for block_sz = block_sz_List
     for i = 1:1:num_group
         index_p{i} =  ((i-1)*block_sz+1):(i*block_sz) ; %natural sequential
     end
-    s = ceil(N/block_sz);
-    h = 10;
     f1 = @() AMM_true_tracefun(A,B,s,index_p);
-    f2 = @() AMM_coarse_hutch(A,B,s,h,index_p);
+    f2 = @() AMM_coarse_hutch(A,B,s,10,index_p);
+    f3 = @() AMM_coarse_uni(A,B,s,index_p);
+    %f4 = @() AMM_coarse_hutch(A,B,s,1,index_p);
+    %f5 = @() AMM_coarse_hutch(A,B,s,50,index_p);
     time_tbl1(counter) = timeit(f1);
+    time_tbl2(counter) = timeit(f2);
+    time_tbl3(counter) = timeit(f3);
+    %time_tbl4(counter) = timeit(f4);
+    %time_tbl5(counter) = timeit(f5);
+    counter = counter+1;
+end
+
+plot(time_tbl1,mean(result_tbl_opt),'o-',time_tbl2,mean(result_tbl_h10),'*-',time_tbl3,mean(result_tbl_uni),'+-')
+xlabel('time (s)');
+ylabel('relative error');
+title('Increasing sampling number c: reconstruction performance vs. computation time')
+legend('Block AMM','Hutch h=10','Uniform Sampling')
+
+% visualization: relative error vs runtime (new)
+block_sz = 100;
+num_group = ceil(k/block_sz);
+p_uniform = ones(1,num_group)/num_group;
+index_p = cell(1,num_group);
+W = cell(1,num_group);
+for i = 1:1:num_group
+    index_p{i} =  ((i-1)*block_sz+1):(i*block_sz) ; %natural sequential
+    W{i} = A(:,index_p{i})*B(index_p{i},:);
+end
+
+repeat_time = 10;
+
+s_list_h10 = floor(linspace(100,2000,20));
+result_tbl_h10 = zeros(repeat_time,length(s_list_h10));
+for rep_num = 1:1:repeat_time
+    disp('h10 repeat round = ')
+    disp(rep_num)
+    counter = 1;
+    for s = s_list_h10 
+        disp(counter)
+        X_h10 = AMM_coarse_hutch(A,B,s,10,index_p);
+        result_tbl_h10(rep_num,counter) = norm(X_h10-T,'fro')/norm(T,'fro');
+        counter = counter+1;
+    end
+end
+
+s_list_uni = floor(linspace(100,4000,20));
+result_tbl_uni = zeros(repeat_time,length(s_list_uni));
+for rep_num = 1:1:repeat_time
+    disp('uni repeat round = ')
+    disp(rep_num)
+    counter = 1;
+    for s = s_list_uni 
+        disp(counter)
+        X_uniform = zeros(size(A,1),size(B,2));
+        UniformSample_list = randsample(num_group,s,true,p_uniform);
+        for j = 1:1:s
+            t_uniform = UniformSample_list(j);           
+            X_uniform = X_uniform + W{t_uniform}/p_uniform(t_uniform);                    
+        end
+        X_uniform = X_uniform/s;
+        result_tbl_uni(rep_num,counter) = norm(X_uniform-T,'fro')/norm(T,'fro');
+        counter = counter+1;
+    end
+end
+
+s_list_opt = floor(linspace(100,2000,20));
+result_tbl_opt = zeros(repeat_time,length(s_list_opt));
+for rep_num = 1:1:repeat_time
+    disp('opt repeat round = ')
+    disp(rep_num)
+    counter = 1;
+    for s = s_list_opt 
+        disp(counter)
+        X_optimal = AMM_true(A,B,s,index_p);
+        result_tbl_opt(rep_num,counter) = norm(X_optimal-T,'fro')/norm(T,'fro');
+        counter = counter+1;
+    end
+end
+
+% time measurements
+time_tbl1 = zeros(1,length(s_list_opt));
+time_tbl2 = zeros(1,length(s_list_h10));
+time_tbl3 = zeros(1,length(s_list_uni));
+
+counter = 1;
+for s = s_list_opt
+    disp(counter)
+    f1 = @() AMM_true_tracefun(A,B,s,index_p);
+    time_tbl1(counter) = timeit(f1);
+    counter = counter+1;
+end
+
+counter = 1;
+for s = s_list_h10
+    disp(counter)
+    f2 = @() AMM_coarse_hutch(A,B,s,10,index_p);
     time_tbl2(counter) = timeit(f2);
     counter = counter+1;
 end
 
+counter = 1;
+for s = s_list_uni
+    disp(counter)
+    f3 = @() AMM_coarse_uni(A,B,s,index_p);
+    time_tbl3(counter) = timeit(f3);
+    counter = counter+1;
+end
 
-plot(block_sz_List,time_tbl1,'o-',block_sz_List,time_tbl2,'*-')
+f = figure();
+hold on
+for i = 1:1:repeat_time
+    scatter(time_tbl1,result_tbl_opt(i,:),80,'filled','MarkerFaceColor','b','MarkerEdgeColor','b','MarkerFaceAlpha',.2,'MarkerEdgeAlpha',.2)
+    scatter(time_tbl3,result_tbl_uni(i,:),80,'filled','MarkerFaceColor','r','MarkerEdgeColor','r','MarkerFaceAlpha',.2,'MarkerEdgeAlpha',.2)
+    scatter(time_tbl2,result_tbl_h10(i,:),80,'filled','MarkerFaceColor','g','MarkerEdgeColor','g','MarkerFaceAlpha',.2,'MarkerEdgeAlpha',.2)
+end
+[t1,I1] = sort(time_tbl1,'ascend');
+[t2,I2] = sort(time_tbl2,'ascend');
+[t3,I3] = sort(time_tbl3,'ascend');
+plot(t1,mean(result_tbl_opt(:,I1)),'Color','b','LineWidth', 1)
+plot(t3,mean(result_tbl_uni(:,I3)),'Color','r','LineWidth', 1)
+plot(t2,mean(result_tbl_h10(:,I2)),'Color','g','LineWidth', 1)
 set(gca, 'YScale', 'log')
-xlabel('block size');
-ylabel('time (s)');
-title('Avergae runtime of Bloack Hutch AMM with predefined groups')
-legend('Block AMM','Hutch Block AMM')
+xlabel('time (s)','FontSize',30);
+ylabel('relative error','FontSize',30);
+title('Increasing sampling number c: reconstruction performance vs. computation time','fontweight','bold','FontSize',36,'interpreter','latex')
+legend('Block AMM','Uniform Sampling','Hutch h=10','FontSize',20,'interpreter','latex','Location','northeast')
+hold off
+
+save('error_vs_time_bsz100')
