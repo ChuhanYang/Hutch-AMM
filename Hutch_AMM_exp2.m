@@ -2,8 +2,10 @@
 % sampled AMM
 
 % generate exponential decreasing column data
-m = 800;k = 10000;
-mu = exp(linspace(5,0,k));
+%m = 800;k = 10000;
+m = 500;k = 1000000;
+mu = exp(linspace(50,0,k));
+%mu = exp(linspace(5,0,k));
 %Sigma = eye(k);
 rng(0) 
 %A_decay = mvnrnd(mu,Sigma,m);
@@ -356,7 +358,7 @@ title('Avergae runtime of Bloack Hutch AMM')
 N = 2500; % total allowed sampled column number
 x = 1:N;
 block_sz_List = x(~(rem(N, x))); % find divisor for N as block_sz
-block_sz_List = block_sz_List(5:end); % remove block_sz < 10
+%block_sz_List = block_sz_List(5:end); % remove block_sz < 10
 %time_tbl1 = zeros(1,20);time_tbl2 = zeros(1,20);time_tbl3 = zeros(1,20);
 [time_tbl1,time_tbl2,time_tbl3,time_tbl4,time_tbl5] = deal(zeros(1,length(block_sz_List)));
 counter = 1;
@@ -368,11 +370,11 @@ for block_sz = block_sz_List
         index_p{i} =  ((i-1)*block_sz+1):(i*block_sz) ; %natural sequential
     end
     s = ceil(N/block_sz);
-    f1 = @() AMM_true_tracefun(A,B,s,index_p);
-    f2 = @() AMM_coarse_hutch(A,B,s,10,index_p);
-    f3 = @() AMM_coarse_uni(A,B,s,index_p);
-    f4 = @() AMM_coarse_hutch(A,B,s,1,index_p);
-    f5 = @() AMM_coarse_hutch(A,B,s,50,index_p);
+    f1 = @() AMM_true_tracefun_ver2(A,B,s,index_p);
+    f2 = @() AMM_coarse_hutch_ver3(A,B,s,10,index_p);
+    f3 = @() AMM_coarse_uni_ver2(A,B,s,index_p);
+    f4 = @() AMM_coarse_hutch_ver3(A,B,s,1,index_p);
+    f5 = @() AMM_coarse_hutch_ver3(A,B,s,50,index_p);
     time_tbl1(counter) = timeit(f1);
     time_tbl2(counter) = timeit(f2);
     time_tbl3(counter) = timeit(f3);
@@ -381,16 +383,17 @@ for block_sz = block_sz_List
     counter = counter+1;
 end
 
-
 plot(block_sz_List,time_tbl1,'o-',block_sz_List,time_tbl4,'*-',block_sz_List,time_tbl2,'*-',block_sz_List,time_tbl5,'*-',block_sz_List,time_tbl3,'+-')
 set(gca, 'YScale', 'log')
 %set(gca, 'XScale', 'log')
 xlabel('block size');
 ylabel('time (s)');
-title('Size 800 by 10000')
+title('Size 400 by 10000')
 legend('Block AMM','Hutch h=1','Hutch h=10','Hutch h=50','Uniform Sampling')
 
-% visualization: relative error vs runtime
+save('time_400x10k')
+
+% visualization: relative error vs runtime (1st version)
 block_sz = 25;
 num_group = ceil(k/block_sz);
 p_uniform = ones(1,num_group)/num_group;
@@ -464,7 +467,7 @@ ylabel('relative error');
 title('Increasing sampling number c: reconstruction performance vs. computation time')
 legend('Block AMM','Hutch h=10','Uniform Sampling')
 
-% visualization: relative error vs runtime (new)
+% visualization: relative error vs runtime (2nd version)
 block_sz = 100;
 num_group = ceil(k/block_sz);
 p_uniform = ones(1,num_group)/num_group;
@@ -575,3 +578,81 @@ legend('Block AMM','Uniform Sampling','Hutch h=10','FontSize',20,'interpreter','
 hold off
 
 save('error_vs_time_bsz100')
+
+% visualization: relative error vs runtime (3rd version)
+%block_sz = 100;
+block_sz = 500;
+num_group = ceil(k/block_sz);
+p_uniform = ones(1,num_group)/num_group;
+index_p = cell(1,num_group);
+%W = cell(1,num_group);
+for i = 1:1:num_group
+    index_p{i} =  ((i-1)*block_sz+1):(i*block_sz) ; %natural sequential
+%    W{i} = A(:,index_p{i})*B(index_p{i},:);
+end
+
+%repeat_time = 10;
+repeat_time = 5;
+
+% s_list_h10 = floor(linspace(100,2000,20));
+s_list_h10 = floor(linspace(10,1000,100));
+result_tbl_h10 = zeros(repeat_time,length(s_list_h10));
+t_tbl_h10 = zeros(repeat_time,length(s_list_h10));
+for rep_num = 1:1:repeat_time
+    disp('h10 repeat round = ')
+    disp(rep_num)
+    counter = 1;
+    for s = s_list_h10 
+        disp(counter)
+        tic
+        X_h10 = AMM_coarse_hutch_ver3(A,B,s,10,index_p);
+        t_tbl_h10(rep_num,counter)= toc;
+        result_tbl_h10(rep_num,counter) = norm(X_h10-T,'fro')/norm(T,'fro');
+        counter = counter+1;
+    end
+end
+
+%s_list_uni = floor(linspace(100,4000,20));
+s_list_uni = floor(linspace(10,1000,100));
+result_tbl_uni = zeros(repeat_time,length(s_list_uni));
+t_tbl_uni = zeros(repeat_time,length(s_list_uni));
+for rep_num = 1:1:repeat_time
+    disp('uni repeat round = ')
+    disp(rep_num)
+    counter = 1;
+    for s = s_list_uni 
+        disp(counter)
+        tic
+        X_uniform = AMM_coarse_uni_ver2(A,B,s,index_p);
+        t_tbl_uni(rep_num,counter)= toc;
+%         X_uniform = zeros(size(A,1),size(B,2));
+%         UniformSample_list = randsample(num_group,s,true,p_uniform);
+%         for j = 1:1:s
+%             t_uniform = UniformSample_list(j);           
+%             X_uniform = X_uniform + W{t_uniform}/p_uniform(t_uniform);                    
+%         end
+%         X_uniform = X_uniform/s;
+        result_tbl_uni(rep_num,counter) = norm(X_uniform-T,'fro')/norm(T,'fro');        
+        counter = counter+1;
+    end
+end
+
+%s_list_opt = floor(linspace(100,2000,20));
+s_list_opt = floor(linspace(10,1000,100));
+result_tbl_opt = zeros(repeat_time,length(s_list_opt));
+t_tbl_opt = zeros(repeat_time,length(s_list_opt));
+for rep_num = 1:1:repeat_time
+    disp('opt repeat round = ')
+    disp(rep_num)
+    counter = 1;
+    for s = s_list_opt 
+        disp(counter)
+        tic
+        X_optimal = AMM_true_tracefun_ver2(A,B,s,index_p);
+        t_tbl_opt(rep_num,counter)= toc;
+        result_tbl_opt(rep_num,counter) = norm(X_optimal-T,'fro')/norm(T,'fro');
+        counter = counter+1;
+    end
+end
+
+save('error_vs_time_bsz1000_500x1m')
