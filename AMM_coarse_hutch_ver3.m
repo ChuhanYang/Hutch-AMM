@@ -19,12 +19,12 @@ p = zeros(k,1);
 if length(index_p{1})<size(A,1) % change matrix multiplication chain based on whether the matrix is wide or thin.
     S = 2*randi(2,length(index_p{1}),c)-3;
     for j = 1:1:k
-        p(j) = sqrt(trace(S'*(A(:,index_p{j})'*A(:,index_p{j}))*(B(index_p{j},:)*B(index_p{j},:)'*S)) / c);
+        p(j) = sqrt(trace(S'*A(:,index_p{j})'*A(:,index_p{j})*B(index_p{j},:)*B(index_p{j},:)'*S) / c);
     end
 else
    S = 2*randi(2,size(A,1),c)-3;
    for j = 1:1:k       
-        p(j) = sqrt(trace(S'*(A(:,index_p{j})*B(index_p{j},:))*(B(index_p{j},:)'*A(:,index_p{j})'*S)) / c);
+        p(j) = sqrt(trace(S'*A(:,index_p{j})*B(index_p{j},:)*B(index_p{j},:)'*A(:,index_p{j})'*S) / c);
    end
 end
 

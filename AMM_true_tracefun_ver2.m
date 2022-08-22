@@ -9,11 +9,11 @@ Tr = zeros(size(A,1),size(B,2));
 p = zeros(k,1);
 if length(index_p{1})<size(A,1) % change matrix multiplication chain based on whether the matrix is wide or thin.
     for j = 1:1:k
-        p(j) = sqrt(trace((A(:,index_p{j})'*A(:,index_p{j}))*(B(index_p{j},:)*B(index_p{j},:)')));
+        p(j) = sqrt(trace(A(:,index_p{j})'*A(:,index_p{j})*B(index_p{j},:)*B(index_p{j},:)'));
     end
 else
    for j = 1:1:k
-        p(j) = sqrt(trace((A(:,index_p{j})*B(index_p{j},:))*(B(index_p{j},:)'*A(:,index_p{j})')));
+        p(j) = sqrt(trace(A(:,index_p{j})*B(index_p{j},:)*B(index_p{j},:)'*A(:,index_p{j})'));
    end
 end
 p = p/sum(p);
