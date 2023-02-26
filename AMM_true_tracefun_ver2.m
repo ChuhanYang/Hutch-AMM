@@ -1,4 +1,5 @@
 function [Tr,m_list] = AMM_true_tracefun_ver2(A,B,m,index_p)
+
 % function AMM (Approximate Matrix Multiplication) uses sampling algorithm.
 %  Inputs:
 %   m: number of sampling/outer product (usually m << order of T)

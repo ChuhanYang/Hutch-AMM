@@ -2,40 +2,58 @@
 % sampled AMM
 
 % generate exponential decreasing column data
-%m = 800;k = 10000;
-m = 500;k = 1000000;
+m = 100;k = 10000;
+%m = 500;k = 1000000;%(summary plot setting)
+%m = 1000;k = 1000000;%(summary plot setting 2)
+%m = 1000;k = 200000;
+%m = 1000;k = 100000;
 mu = exp(linspace(50,0,k));
 %mu = exp(linspace(5,0,k));
 %Sigma = eye(k);
 rng(0) 
 %A_decay = mvnrnd(mu,Sigma,m);
-A_decay = mu + randn(m,k);
-A = A_decay;
+A = mu + randn(m,k);
 %A = A_decay(:,randperm(k));
 %A = rand(m,k);
 B = rand(k,m);T = A*B;
 
 % generate linear increasing
-m = 100;k = 10000;
-mu = 0:0.001:9.999;
-Sigma = eye(k);
+m = 1000;k = 100000;
+% mu = 0:0.001:9.999;
+mu = linspace(0,1000,k);
+%Sigma = eye(k);
 rng(0) 
-A_decay = mvnrnd(mu,Sigma,m);
-A = A_decay;
+A = mu + randn(m,k);
+% A_decay = mvnrnd(mu,Sigma,m);
+% A = A_decay;
 %A = A_decay(:,randperm(k));
-B = 5*rand(k,m);T = A*B;
+B = rand(k,m);T = A*B;
 
 % generate drift data (exponential decreasing + linear increasing)
 m = 100;k = 10000;
+%mu = cat(2,exp(linspace(5,0,k/2)),linspace(0,120,k/2));
 mu = exp(linspace(5,0,10000));
 Sigma = eye(k/2);
 rng(0) 
-A_decay1 = mvnrnd(mu(1:(k/2)),Sigma,m);
-A_decay2 = mvnrnd(linspace(0,120,k/2),Sigma,m);
+A_decay1 = mvnrnd(mu(1:(k/2)),Sigma,m); % A_decay1 = mu(1:(k/2)) + randn(m,k/2);
+A_decay2 = mvnrnd(linspace(0,120,k/2),Sigma,m); %A_decay2 = linspace(0,120,k/2) + randn(m,k/2);
 A_decay = cat(2,A_decay1,A_decay2);
 A = A_decay;
 %A = A_decay(:,randperm(k));
 B = rand(k,m);T = A*B;
+
+% generate sparse data
+m = 1000;k = 100000;
+A = full(sprand(m,k,0.1));
+
+mu = exp(linspace(50,0,k));
+%mu = linspace(0,1000,k);
+A = A.*mu;
+
+B = full(sprand(k,m,0.1));T = A*B;
+%B = rand(k,m);T = A*B;
+
+
 
 % partition based on natural sequential
 block_sz = 100;
@@ -175,50 +193,77 @@ for i = 1:1:num_group
 
 end
 
-repeat_time = 20;
-%%repeat_time = 50;
-s_list = 10:10:490;
-[result_tbl_h1,result_tbl_h3,result_tbl_h5, result_tbl_h10, result_tbl_h20,result_tbl_h50,result_tbl_opt,result_tbl_uni] = deal(zeros(repeat_time,length(s_list)));
-for rep_num = 1:1:repeat_time
-    disp('repeat round = ')
-    disp(rep_num)
-    counter = 1;
-    for s = s_list 
-        disp(counter)
-        X_h1 = AMM_coarse_hutch(A,B,s,1,index_p);
-        X_h3 = AMM_coarse_hutch(A,B,s,3,index_p);
-        X_h5 = AMM_coarse_hutch(A,B,s,5,index_p);
-        X_h10 = AMM_coarse_hutch(A,B,s,10,index_p);
-        X_h20 = AMM_coarse_hutch(A,B,s,20,index_p);
-        X_h50 = AMM_coarse_hutch(A,B,s,50,index_p);
-        %optimal case
-        X_optimal = AMM_true(A,B,s,index_p);
+% old code
+% repeat_time = 20;
+% %%repeat_time = 50;
+% s_list = 10:10:490;
+% [result_tbl_h1,result_tbl_h3,result_tbl_h5, result_tbl_h10, result_tbl_h20,result_tbl_h50,result_tbl_opt,result_tbl_uni] = deal(zeros(repeat_time,length(s_list)));
+% for rep_num = 1:1:repeat_time
+%     disp('repeat round = ')
+%     disp(rep_num)
+%     counter = 1;
+%     for s = s_list 
+%         disp(counter)
+%         X_h1 = AMM_coarse_hutch(A,B,s,1,index_p);
+%         X_h3 = AMM_coarse_hutch(A,B,s,3,index_p);
+%         X_h5 = AMM_coarse_hutch(A,B,s,5,index_p);
+%         X_h10 = AMM_coarse_hutch(A,B,s,10,index_p);
+%         X_h20 = AMM_coarse_hutch(A,B,s,20,index_p);
+%         X_h50 = AMM_coarse_hutch(A,B,s,50,index_p);
+%         %optimal case
+%         X_optimal = AMM_true(A,B,s,index_p);
+% 
+%         %uniform sampling case
+%         X_uniform = zeros(size(A,1),size(B,2));
+%         UniformSample_list = randsample(num_group,s,true,p_uniform);
+%         for j = 1:1:s
+%             t_uniform = UniformSample_list(j);           
+%             X_uniform = X_uniform + W{t_uniform}/p_uniform(t_uniform);                    
+%         end
+%         X_uniform = X_uniform/s;
+%         result_tbl_h1(rep_num,counter) = norm(X_h1-T,'fro')/norm(T,'fro');
+%         result_tbl_h3(rep_num,counter) = norm(X_h3-T,'fro')/norm(T,'fro');
+%         result_tbl_h5(rep_num,counter) = norm(X_h5-T,'fro')/norm(T,'fro');
+%         result_tbl_h10(rep_num,counter) = norm(X_h10-T,'fro')/norm(T,'fro');
+%         result_tbl_h20(rep_num,counter) = norm(X_h20-T,'fro')/norm(T,'fro');
+%         result_tbl_h50(rep_num,counter) = norm(X_h50-T,'fro')/norm(T,'fro');
+%         result_tbl_opt(rep_num,counter) = norm(X_optimal-T,'fro')/norm(T,'fro');
+%         result_tbl_uni(rep_num,counter) = norm(X_uniform-T,'fro')/norm(T,'fro');
+%         counter = counter+1;
+%     end
+% end
 
-        %uniform sampling case
-        X_uniform = zeros(size(A,1),size(B,2));
-        UniformSample_list = randsample(num_group,s,true,p_uniform);
-        for j = 1:1:s
-            t_uniform = UniformSample_list(j);           
-            X_uniform = X_uniform + W{t_uniform}/p_uniform(t_uniform);                    
+% new code
+%repeat_time = 20;
+    repeat_time = 20;
+    %%repeat_time = 50;
+    %s_list = 10:10:490;
+    %s_list = 50:50:500;
+    s_list = 10:10:100;
+    [result_tbl_h1, result_tbl_h10, result_tbl_h50,result_tbl_opt,result_tbl_uni] = deal(zeros(repeat_time,length(s_list)));
+    for rep_num = 1:1:repeat_time
+        disp('repeat round = ')
+        disp(rep_num)
+        counter = 1;
+        for s = s_list 
+            disp(counter)
+            X_h1 = AMM_coarse_hutch_ver4(A,B,s,1,index_p);
+            X_h10 = AMM_coarse_hutch_ver4(A,B,s,10,index_p);
+            X_h50 = AMM_coarse_hutch_ver4(A,B,s,50,index_p);
+            %optimal case
+            X_optimal = AMM_true_tracefun_ver2(A,B,s,index_p);
+            %uniform sampling case
+            X_uniform = AMM_coarse_uni_ver2(A,B,s,index_p);
+            result_tbl_h1(rep_num,counter) = norm(X_h1-T,'fro')/norm(T,'fro');
+            result_tbl_h10(rep_num,counter) = norm(X_h10-T,'fro')/norm(T,'fro');
+            result_tbl_h50(rep_num,counter) = norm(X_h50-T,'fro')/norm(T,'fro');
+            result_tbl_opt(rep_num,counter) = norm(X_optimal-T,'fro')/norm(T,'fro');
+            result_tbl_uni(rep_num,counter) = norm(X_uniform-T,'fro')/norm(T,'fro');
+            counter = counter+1;
         end
-        X_uniform = X_uniform/s;
-        result_tbl_h1(rep_num,counter) = norm(X_h1-T,'fro')/norm(T,'fro');
-        result_tbl_h3(rep_num,counter) = norm(X_h3-T,'fro')/norm(T,'fro');
-        result_tbl_h5(rep_num,counter) = norm(X_h5-T,'fro')/norm(T,'fro');
-        result_tbl_h10(rep_num,counter) = norm(X_h10-T,'fro')/norm(T,'fro');
-        result_tbl_h20(rep_num,counter) = norm(X_h20-T,'fro')/norm(T,'fro');
-        result_tbl_h50(rep_num,counter) = norm(X_h50-T,'fro')/norm(T,'fro');
-        result_tbl_opt(rep_num,counter) = norm(X_optimal-T,'fro')/norm(T,'fro');
-        result_tbl_uni(rep_num,counter) = norm(X_uniform-T,'fro')/norm(T,'fro');
-        counter = counter+1;
     end
-end
 
-%save('ExpDec_h10_ErrEst')
-%save('LinInc_h10_ErrEst')
-%save('Drift_h10_ErrEst')
-%save('Uniform_h10_ErrEst')
-save('ExpDec_bsz20_ErrEst')
+%save('ExpDec_bsz20_ErrEst')
 
 result_tbl = [mean(result_tbl_h1);mean(result_tbl_h3);mean(result_tbl_h5); mean(result_tbl_h10);mean(result_tbl_h20);mean(result_tbl_h50)];
 plot(s_list,result_tbl,'o-')
@@ -355,7 +400,8 @@ ylabel('time (s)');
 title('Avergae runtime of Bloack Hutch AMM')
 
 % visualization: runtime of AMM and Block-Hutch-AMM
-N = 2500; % total allowed sampled column number
+% N = 2500; % total allowed sampled column number
+N = 1000;
 x = 1:N;
 block_sz_List = x(~(rem(N, x))); % find divisor for N as block_sz
 %block_sz_List = block_sz_List(5:end); % remove block_sz < 10
@@ -371,27 +417,29 @@ for block_sz = block_sz_List
     end
     s = ceil(N/block_sz);
     f1 = @() AMM_true_tracefun_ver2(A,B,s,index_p);
-    f2 = @() AMM_coarse_hutch_ver3(A,B,s,10,index_p);
+    f2 = @() AMM_coarse_hutch_ver3(A,B,s,100,index_p);
     f3 = @() AMM_coarse_uni_ver2(A,B,s,index_p);
     f4 = @() AMM_coarse_hutch_ver3(A,B,s,1,index_p);
-    f5 = @() AMM_coarse_hutch_ver3(A,B,s,50,index_p);
+    %f5 = @() AMM_coarse_hutch_ver3(A,B,s,50,index_p);
     time_tbl1(counter) = timeit(f1);
     time_tbl2(counter) = timeit(f2);
     time_tbl3(counter) = timeit(f3);
     time_tbl4(counter) = timeit(f4);
-    time_tbl5(counter) = timeit(f5);
+    %time_tbl5(counter) = timeit(f5);
     counter = counter+1;
 end
 
-plot(block_sz_List,time_tbl1,'o-',block_sz_List,time_tbl4,'*-',block_sz_List,time_tbl2,'*-',block_sz_List,time_tbl5,'*-',block_sz_List,time_tbl3,'+-')
+%plot(block_sz_List,time_tbl1,'o-',block_sz_List,time_tbl4,'*-',block_sz_List,time_tbl2,'*-',block_sz_List,time_tbl5,'*-',block_sz_List,time_tbl3,'+-')
+plot(block_sz_List,time_tbl1,'o-',block_sz_List,time_tbl4,'*-',block_sz_List,time_tbl2,'*-',block_sz_List,time_tbl3,'+-')
 set(gca, 'YScale', 'log')
 %set(gca, 'XScale', 'log')
-xlabel('block size');
-ylabel('time (s)');
-title('Size 400 by 10000')
-legend('Block AMM','Hutch h=1','Hutch h=10','Hutch h=50','Uniform Sampling')
+xlabel('block size','FontSize',30);
+ylabel('time (s)','FontSize',30);
+title('Size 1000 by 100000','fontweight','bold','FontSize',36,'interpreter','latex')
+%legend('Block AMM','Hutch h=1','Hutch h=10','Hutch h=50','Uniform Sampling')
+legend('Block AMM','Hutch h=1','Hutch h=100','Uniform Sampling','FontSize',20,'interpreter','latex','Location','northeast')
 
-save('time_400x10k')
+save('time_1000x200k')
 
 % visualization: relative error vs runtime (1st version)
 block_sz = 25;
@@ -580,10 +628,10 @@ hold off
 save('error_vs_time_bsz100')
 
 % visualization: relative error vs runtime (3rd version)
-%block_sz = 100;
-block_sz = 500;
+block_sz = 100;
+%block_sz = 500;
 num_group = ceil(k/block_sz);
-p_uniform = ones(1,num_group)/num_group;
+%p_uniform = ones(1,num_group)/num_group;
 index_p = cell(1,num_group);
 %W = cell(1,num_group);
 for i = 1:1:num_group
@@ -591,11 +639,12 @@ for i = 1:1:num_group
 %    W{i} = A(:,index_p{i})*B(index_p{i},:);
 end
 
-%repeat_time = 10;
-repeat_time = 5;
+%repeat_time = 20;
+repeat_time = 10;
 
 % s_list_h10 = floor(linspace(100,2000,20));
-s_list_h10 = floor(linspace(10,1000,100));
+%s_list_h10 = floor(linspace(10,1000,100));
+s_list_h10 = floor(linspace(10,500,10));
 result_tbl_h10 = zeros(repeat_time,length(s_list_h10));
 t_tbl_h10 = zeros(repeat_time,length(s_list_h10));
 for rep_num = 1:1:repeat_time
@@ -612,8 +661,12 @@ for rep_num = 1:1:repeat_time
     end
 end
 
-%s_list_uni = floor(linspace(100,4000,20));
-s_list_uni = floor(linspace(10,1000,100));
+
+%s_list_uni = floor(linspace(400,4000,10));
+%s_list_uni = floor(linspace(10,4000,10)); % linear increasing
+%s_list_uni = floor(linspace(10,3000,10)); % sparse Exp increasing
+s_list_uni = floor(linspace(10,2000,10));
+%s_list_uni = [s_list_uni(1:end-1),floor(linspace(910,1000,10))];
 result_tbl_uni = zeros(repeat_time,length(s_list_uni));
 t_tbl_uni = zeros(repeat_time,length(s_list_uni));
 for rep_num = 1:1:repeat_time
@@ -623,22 +676,17 @@ for rep_num = 1:1:repeat_time
     for s = s_list_uni 
         disp(counter)
         tic
-        X_uniform = AMM_coarse_uni_ver2(A,B,s,index_p);
+        %X_uniform = AMM_coarse_uni_ver2(A,B,s,index_p,false); %without replacement
+        X_uniform = AMM_coarse_uni_ver2(A,B,s,index_p); %with replacement
         t_tbl_uni(rep_num,counter)= toc;
-%         X_uniform = zeros(size(A,1),size(B,2));
-%         UniformSample_list = randsample(num_group,s,true,p_uniform);
-%         for j = 1:1:s
-%             t_uniform = UniformSample_list(j);           
-%             X_uniform = X_uniform + W{t_uniform}/p_uniform(t_uniform);                    
-%         end
-%         X_uniform = X_uniform/s;
         result_tbl_uni(rep_num,counter) = norm(X_uniform-T,'fro')/norm(T,'fro');        
         counter = counter+1;
     end
 end
 
 %s_list_opt = floor(linspace(100,2000,20));
-s_list_opt = floor(linspace(10,1000,100));
+%s_list_opt = floor(linspace(10,1000,100));
+s_list_opt = floor(linspace(10,500,10));
 result_tbl_opt = zeros(repeat_time,length(s_list_opt));
 t_tbl_opt = zeros(repeat_time,length(s_list_opt));
 for rep_num = 1:1:repeat_time
@@ -655,4 +703,76 @@ for rep_num = 1:1:repeat_time
     end
 end
 
-save('error_vs_time_bsz1000_500x1m')
+% non-coarse optimal AMM
+
+%s_list_AMM = floor(linspace(10,500,5));
+s_list_AMM = floor(linspace(10,500*block_sz,10));
+result_tbl_AMM = zeros(repeat_time,length(s_list_AMM));
+t_tbl_AMM = zeros(repeat_time,length(s_list_AMM));
+for rep_num = 1:1:repeat_time
+    disp('standard AMM repeat round = ')
+    disp(rep_num)
+    counter = 1;
+    for s = s_list_AMM 
+        disp(counter)
+        tic
+        X_optimal = AMM_standard_fair(A,B,s,block_sz);
+        t_tbl_AMM(rep_num,counter)= toc;
+        result_tbl_AMM(rep_num,counter) = norm(X_optimal-T,'fro')/norm(T,'fro');
+        counter = counter+1;
+    end
+end
+
+% non-coarse optimal AMM
+% block_sz = 1;
+% %block_sz = 500;
+% num_group = ceil(k/block_sz);
+% p_uniform = ones(1,num_group)/num_group;
+% index_p = cell(1,num_group);
+% %W = cell(1,num_group);
+% for i = 1:1:num_group
+%     index_p{i} =  ((i-1)*block_sz+1):(i*block_sz) ; %natural sequential
+% %    W{i} = A(:,index_p{i})*B(index_p{i},:);
+% end
+% 
+% %s_list_AMM = floor(linspace(10,500,5));
+% s_list_AMM = floor(linspace(10,3*500*block_sz,10));
+% result_tbl_AMM = zeros(repeat_time,length(s_list_AMM));
+% t_tbl_AMM = zeros(repeat_time,length(s_list_AMM));
+% for rep_num = 1:1:repeat_time
+%     disp('standard AMM repeat round = ')
+%     disp(rep_num)
+%     counter = 1;
+%     for s = s_list_AMM 
+%         disp(counter)
+%         tic
+%         X_optimal = AMM_true_tracefun_ver2(A,B,s,index_p);
+%         t_tbl_AMM(rep_num,counter)= toc;
+%         result_tbl_AMM(rep_num,counter) = norm(X_optimal-T,'fro')/norm(T,'fro');
+%         counter = counter+1;
+%     end
+% end
+
+std_time_tbl = zeros(1,repeat_time);
+for rep_num = 1:1:repeat_time
+    tic
+    T = A*B;
+    std_time_tbl(rep_num) = toc;
+    clear T;
+end
+std_time = mean(std_time_tbl);
+
+
+% std_time_tbl2 = zeros(1,repeat_time);
+% for rep_num = 1:1:repeat_time
+%     disp(rep_num)
+%     tic
+%     T = inmat(A,B);
+%     std_time_tbl2(rep_num) = toc;
+%     clear T;
+% end
+% std_time2 = mean(std_time_tbl2);
+
+save('error_vs_time_s500_bsz500_1000x1m')
+save('error_vs_time_bsz500_1000x1m_new_2')
+save('error_vs_time_bsz50_500x100k_new')
