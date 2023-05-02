@@ -4,19 +4,19 @@ Codes for the paper "Efficient Block Approximate Matrix Multiplication"
 
 The code contains:
 
-**AMM Experiment code:**
+## AMM Experiment code:
 
 realdata_experiment.m: *Experiment with practical data*
 
 Paper_experiment.m: *Experiment with synthetic data*
 
 
-**Visualization:**
+## Visualization:
 
 plot_visualization.m
 
 
-**Algorithm:**
+## Algorithm:
 
 simple_hutchinson.m: *simple Hutch trace estimator*
 
@@ -29,7 +29,7 @@ AMM_coarse_uni_ver2.m: *Uniform AMM estimator, fair comparison*
 AMM_true_CR.m: *CR AMM estimator, fair comparison*
 
 
-**Past Implementations:**
+### Past Implementations:
 
 p_bar_modified_exp.m: (Archived)
 
