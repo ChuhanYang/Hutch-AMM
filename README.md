@@ -1,6 +1,6 @@
 # Efficient Block Approximate Matrix Multiplication
 
-Codes for the paper Efficient Block Approximate Matrix Multiplication
+Codes for the paper "Efficient Block Approximate Matrix Multiplication"
 
 The code contains:
 
@@ -20,16 +20,17 @@ plot_visualization.m
 
 simple_hutchinson.m: *simple Hutch trace estimator*
 
-AMM_true_tracefun_ver2.m: *Standard (Optimal) AMM estimator, needs predefined group partition as input, fair comparison*
+AMM_true_tracefun_ver2.m: *Optimal AMM estimator (BlockBasicMatrixMultiplication), needs predefined group partition as input, fair comparison*
 
 AMM_coarse_hutch_ver4.m: *Hutch AMM estimator, needs predefined group partition as input, fair comparison*
 
 AMM_coarse_uni_ver2.m: *Uniform AMM estimator, fair comparison*
 
-AMM_true_CR.m: *CR AMM estimator*
+AMM_true_CR.m: *CR AMM estimator, fair comparison*
 
 
 **Past Implementations:**
+
 p_bar_modified_exp.m: (Archived)
 
 Hutch_AMM_exp2.m: *Experiment with synthetic data* (Archived)
